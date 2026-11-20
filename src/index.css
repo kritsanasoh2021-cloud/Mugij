@@ -1,0 +1,89 @@
+@import "tailwindcss";
+@custom-variant dark (&:where(.dark, .dark *));
+
+@layer base {
+  :root {
+    --bg-canvas: #090b10;
+    --bg-panel: #11151e;
+    --bg-elevated: #171c28;
+    --border-hairline: #242b3b;
+    --accent-crimson: #e11d48;
+    --accent-amber: #f59e0b;
+    --accent-cyan: #06b6d4;
+    --accent-emerald: #10b981;
+  }
+
+  body {
+    font-family: 'Chakra Petch', 'Noto Sans Thai', system-ui, sans-serif;
+    background-color: var(--bg-canvas);
+    color: #f1f5f9;
+    overflow-x: hidden;
+  }
+
+  .font-mono-tabular {
+    font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .tabular-nums {
+    font-variant-numeric: tabular-nums;
+  }
+
+  .mobile-orientation-stage {
+    position: fixed;
+    inset: 0;
+    width: 100vw;
+    height: 100dvh;
+    overflow: hidden;
+    background-color: var(--bg-canvas);
+  }
+
+  .mobile-orientation-stage--landscape-rotated {
+    position: fixed;
+    top: 0;
+    left: 100vw;
+    width: 100dvh;
+    height: 100vw;
+    transform: rotate(90deg);
+    transform-origin: top left;
+    overflow: hidden;
+    background-color: var(--bg-canvas);
+  }
+
+  .mobile-orientation-stage--portrait-rotated {
+    position: fixed;
+    top: 100dvh;
+    left: 0;
+    width: 100dvh;
+    height: 100vw;
+    transform: rotate(-90deg);
+    transform-origin: top left;
+    overflow: hidden;
+    background-color: var(--bg-canvas);
+  }
+
+  .app-desktop-shell {
+    zoom: var(--app-zoom, 1);
+    width: var(--shell-w, 100vw);
+    height: var(--shell-h, 100dvh);
+  }
+}
+
+/* Custom precision dark scrollbar */
+::-webkit-scrollbar {
+  width: 7px;
+  height: 7px;
+}
+
+::-webkit-scrollbar-track {
+  background: #0b0e15;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #273043;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #3b4763;
+}

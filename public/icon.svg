@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0D111C" />
+      <stop offset="100%" stop-color="#07090E" />
+    </linearGradient>
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#F43F5E" />
+      <stop offset="100%" stop-color="#E11D48" />
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="96" fill="url(#bg)" />
+  <rect x="20" y="20" width="472" height="472" rx="80" fill="none" stroke="#1E293B" stroke-width="6" />
+  <!-- ECU IC Chip Body -->
+  <rect x="136" y="136" width="240" height="240" rx="28" fill="#131926" stroke="#06B6D4" stroke-width="12" />
+  <!-- Pins -->
+  <g stroke="#38BDF8" stroke-width="12" stroke-linecap="round">
+    <line x1="184" y1="92" x2="184" y2="124" />
+    <line x1="232" y1="92" x2="232" y2="124" />
+    <line x1="280" y1="92" x2="280" y2="124" />
+    <line x1="328" y1="92" x2="328" y2="124" />
+    <line x1="184" y1="388" x2="184" y2="420" />
+    <line x1="232" y1="388" x2="232" y2="420" />
+    <line x1="280" y1="388" x2="280" y2="420" />
+    <line x1="328" y1="388" x2="328" y2="420" />
+    <line x1="92" y1="184" x2="124" y2="184" />
+    <line x1="92" y1="232" x2="124" y2="232" />
+    <line x1="92" y1="280" x2="124" y2="280" />
+    <line x1="92" y1="328" x2="124" y2="328" />
+    <line x1="388" y1="184" x2="420" y2="184" />
+    <line x1="388" y1="232" x2="420" y2="232" />
+    <line x1="388" y1="280" x2="420" y2="280" />
+    <line x1="388" y1="328" x2="420" y2="328" />
+  </g>
+  <!-- Inner Crimson Fuel/Ignition Pulse -->
+  <path
+    d="M174 282 L218 282 L240 202 L274 316 L300 242 L338 242"
+    fill="none"
+    stroke="url(#accent)"
+    stroke-width="18"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
+</svg>

@@ -1,0 +1,8 @@
+{
+  "name": "Honda PGM-FI ECU Studio",
+  "description": "Honda motorcycle ECU tuning workbench with BIN/XDF editor, 3D fuel & ignition maps, Web Serial K-Line live telemetry, AFR auto-tune, Smart Gauge DTC diagnostics, and auto-checksum flasher.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
