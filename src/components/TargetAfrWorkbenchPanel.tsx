@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Activity,
   ArrowLeftRight,
@@ -70,6 +70,9 @@ export const TargetAfrWorkbenchPanel: React.FC<TargetAfrWorkbenchPanelProps> = (
   const [selectedCells, setSelectedCells] = useState<CellCoord[]>([{ row: 0, col: 0 }]);
   const [anchorCell, setAnchorCell] = useState<CellCoord | null>({ row: 0, col: 0 });
   const [isDragging, setIsDragging] = useState(false);
+  const [touchMode, setTouchMode] = useState<'select' | 'scroll'>('select');
+  const [rangeTapMode, setRangeTapMode] = useState(false);
+  const lastTapRef = useRef<{ row: number; col: number; time: number } | null>(null);
   const [batchInput, setBatchInput] = useState('13.0');
   const [editingCell, setEditingCell] = useState<CellCoord | null>(null);
   const [editDraft, setEditDraft] = useState('');
@@ -80,7 +83,13 @@ export const TargetAfrWorkbenchPanel: React.FC<TargetAfrWorkbenchPanelProps> = (
   useEffect(() => {
     const onUp = () => setIsDragging(false);
     window.addEventListener('mouseup', onUp);
-    return () => window.removeEventListener('mouseup', onUp);
+    window.addEventListener('pointerup', onUp);
+    window.addEventListener('pointercancel', onUp);
+    return () => {
+      window.removeEventListener('mouseup', onUp);
+      window.removeEventListener('pointerup', onUp);
+      window.removeEventListener('pointercancel', onUp);
+    };
   }, []);
 
   // Keep batch input sensible when toggling AFR <-> Lambda
@@ -839,6 +848,86 @@ export const TargetAfrWorkbenchPanel: React.FC<TargetAfrWorkbenchPanelProps> = (
       <div className="flex-1 min-h-0 flex overflow-hidden">
         {subView === 'table' && (
           <div className="w-full bg-[#11151E] border border-[#242B3B] rounded-lg flex flex-col min-w-0 overflow-hidden">
+            {/* Touch & Range Selection Helper Strip */}
+            <div className="px-2.5 py-1.5 bg-[#0D1018] border-b border-[#1E2535] flex flex-wrap items-center justify-between gap-2 shrink-0 text-[11px]">
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <div className="flex items-center gap-0.5 bg-[#090B10] p-0.5 rounded border border-[#242B3B]">
+                  <button
+                    type="button"
+                    onClick={() => setTouchMode('select')}
+                    className={`px-2 py-0.5 rounded font-semibold transition-colors cursor-pointer ${
+                      touchMode === 'select'
+                        ? 'bg-cyan-600 text-white'
+                        : 'text-slate-300 hover:text-white'
+                    }`}
+                    title="แตะลากบนตารางเพื่อครอบเลือกหลายเซลล์"
+                  >
+                    ลากครอบเซลล์
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setTouchMode('scroll')}
+                    className={`px-2 py-0.5 rounded font-semibold transition-colors cursor-pointer ${
+                      touchMode === 'scroll'
+                        ? 'bg-cyan-600 text-white'
+                        : 'text-slate-300 hover:text-white'
+                    }`}
+                    title="ใช้นิ้วเลื่อนดูตารางซ้าย-ขวา/ขึ้น-ลง"
+                  >
+                    เลื่อนดูตาราง
+                  </button>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setRangeTapMode((v) => !v)}
+                  className={`px-2 py-0.5 rounded border font-medium transition-colors cursor-pointer ${
+                    rangeTapMode
+                      ? 'bg-amber-600/25 border-amber-500 text-amber-200'
+                      : 'bg-[#171C28] hover:bg-[#22293B] border-[#2C364C] text-slate-300'
+                  }`}
+                  title="แตะเซลล์เริ่มต้น แล้วแตะอีกเซลล์เพื่อครอบสี่เหลี่ยมข้ามหน้าได้"
+                >
+                  {rangeTapMode ? 'แตะเซลล์ปลายทาง...' : 'แตะเลือกช่วง (2 จุด)'}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    const rCount = afrMatrix.length;
+                    const cCount = afrMatrix[0]?.length || 0;
+                    if (rCount > 0 && cCount > 0) {
+                      setAnchorCell({ row: 0, col: 0 });
+                      selectRange({ row: 0, col: 0 }, { row: rCount - 1, col: cCount - 1 });
+                    }
+                  }}
+                  className="px-2 py-0.5 rounded bg-[#171C28] hover:bg-[#22293B] border border-[#2C364C] text-slate-300 font-medium cursor-pointer"
+                  title="ครอบเลือกทุกเซลล์ในตาราง"
+                >
+                  ครอบทั้งหมด
+                </button>
+
+                {selectedCells.length === 1 && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const cell = selectedCells[0];
+                      const cur = displayMatrix[cell.row]?.[cell.col] ?? 13.5;
+                      setEditingCell(cell);
+                      setEditDraft(cur.toFixed(decimals));
+                    }}
+                    className="px-2 py-0.5 rounded bg-emerald-600/20 hover:bg-emerald-600/35 border border-emerald-500/50 text-emerald-300 font-semibold cursor-pointer"
+                  >
+                    แก้ค่าช่องนี้
+                  </button>
+                )}
+              </div>
+
+              <div className="text-[10.5px] font-mono-tabular text-slate-400">
+                แตะหัวแถว/คอลัมน์เพื่อครอบทั้งแถว · ดับเบิลแตะเซลล์เพื่อพิมพ์ค่า · เลือก {selectedCells.length} เซลล์
+              </div>
+            </div>
+
             <div className="flex-1 overflow-auto p-2">
               <table
                 className={`w-max min-w-full border-collapse font-mono-tabular select-none ${
@@ -848,7 +937,16 @@ export const TargetAfrWorkbenchPanel: React.FC<TargetAfrWorkbenchPanelProps> = (
                 <thead>
                   <tr>
                     <th
-                      className={`sticky top-0 left-0 z-20 bg-[#0D1018] border border-[#242B3B] text-slate-400 text-left whitespace-nowrap ${
+                      onClick={() => {
+                        const rCount = afrMatrix.length;
+                        const cCount = afrMatrix[0]?.length || 0;
+                        if (rCount > 0 && cCount > 0) {
+                          setAnchorCell({ row: 0, col: 0 });
+                          selectRange({ row: 0, col: 0 }, { row: rCount - 1, col: cCount - 1 });
+                        }
+                      }}
+                      title="คลิก/แตะเพื่อครอบทั้งตาราง"
+                      className={`sticky top-0 left-0 z-20 bg-[#0D1018] hover:bg-[#171E2E] border border-[#242B3B] text-slate-400 text-left whitespace-nowrap cursor-pointer ${
                         isDenseGrid ? 'px-1.5 py-1 text-[9.5px]' : 'px-2 py-1.5 text-[10px]'
                       }`}
                     >
@@ -859,14 +957,22 @@ export const TargetAfrWorkbenchPanel: React.FC<TargetAfrWorkbenchPanelProps> = (
                       return (
                         <th
                           key={c}
-                          className={`sticky top-0 z-10 border font-semibold text-center whitespace-nowrap ${
+                          onClick={() => {
+                            const rCount = afrMatrix.length;
+                            if (rCount > 0) {
+                              setAnchorCell({ row: 0, col: c });
+                              selectRange({ row: 0, col: c }, { row: rCount - 1, col: c });
+                            }
+                          }}
+                          title={`แตะเพื่อครอบทั้งคอลัมน์ ${xVal}`}
+                          className={`sticky top-0 z-10 border font-semibold text-center whitespace-nowrap cursor-pointer ${
                             isDenseGrid
                               ? 'px-1 py-1 text-[10px] min-w-[48px]'
                               : 'px-1.5 py-1.5 text-[11px]'
                           } ${
                             isLiveCol
                               ? 'bg-cyan-950/75 border-cyan-400/70 text-cyan-200'
-                              : 'bg-[#141925] border-[#242B3B] text-slate-200'
+                              : 'bg-[#141925] hover:bg-[#1C2333] border-[#242B3B] text-slate-200'
                           }`}
                         >
                           {xVal}
@@ -875,20 +981,44 @@ export const TargetAfrWorkbenchPanel: React.FC<TargetAfrWorkbenchPanelProps> = (
                     })}
                   </tr>
                 </thead>
-                <tbody>
+                <tbody
+                  className={touchMode === 'select' ? 'touch-none' : 'touch-auto'}
+                  onPointerMove={(e) => {
+                    if (!isDragging || !anchorCell) return;
+                    const hit = document
+                      .elementFromPoint(e.clientX, e.clientY)
+                      ?.closest('[data-cell-row]') as HTMLElement | null;
+                    if (!hit) return;
+                    const r = Number(hit.dataset.cellRow);
+                    const c = Number(hit.dataset.cellCol);
+                    if (!Number.isNaN(r) && !Number.isNaN(c)) {
+                      selectRange(anchorCell, { row: r, col: c });
+                    }
+                  }}
+                  onPointerUp={() => setIsDragging(false)}
+                  onPointerCancel={() => setIsDragging(false)}
+                >
                   {afrMatrix.map((rowVals, r) => {
                     const isLiveRow = liveTrace?.row === r;
                     return (
                       <tr key={r}>
                         <th
-                          className={`sticky left-0 z-10 border font-semibold text-right whitespace-nowrap ${
+                          onClick={() => {
+                            const cCount = rowVals.length;
+                            if (cCount > 0) {
+                              setAnchorCell({ row: r, col: 0 });
+                              selectRange({ row: r, col: 0 }, { row: r, col: cCount - 1 });
+                            }
+                          }}
+                          title={`แตะเพื่อครอบทั้งแถว ${yLabels[r]}`}
+                          className={`sticky left-0 z-10 border font-semibold text-right whitespace-nowrap cursor-pointer ${
                             isDenseGrid
                               ? 'px-1.5 py-0.5 text-[10px] min-w-[42px]'
                               : 'px-2 py-1 text-[11px]'
                           } ${
                             isLiveRow
                               ? 'bg-cyan-950/75 border-cyan-400/70 text-cyan-200'
-                              : 'bg-[#141925] border-[#242B3B] text-slate-200'
+                              : 'bg-[#141925] hover:bg-[#1C2333] border-[#242B3B] text-slate-200'
                           }`}
                         >
                           {yLabels[r]}
@@ -914,19 +1044,65 @@ export const TargetAfrWorkbenchPanel: React.FC<TargetAfrWorkbenchPanelProps> = (
                           return (
                             <td
                               key={c}
-                              onMouseDown={(e) => {
-                                if (e.shiftKey && anchorCell) {
+                              data-cell-row={r}
+                              data-cell-col={c}
+                              onPointerDown={(e) => {
+                                if ((e.target as HTMLElement).tagName === 'INPUT') return;
+                                if (rangeTapMode && anchorCell) {
                                   selectRange(anchorCell, { row: r, col: c });
-                                } else {
+                                  return;
+                                }
+                                if (e.pointerType === 'mouse') {
+                                  if (e.shiftKey && anchorCell) {
+                                    selectRange(anchorCell, { row: r, col: c });
+                                  } else {
+                                    setAnchorCell({ row: r, col: c });
+                                    setSelectedCells([{ row: r, col: c }]);
+                                    setActiveRegionTag(null);
+                                    setIsDragging(true);
+                                  }
+                                  return;
+                                }
+                                // Touch / Pen handling
+                                const now = Date.now();
+                                if (
+                                  lastTapRef.current &&
+                                  lastTapRef.current.row === r &&
+                                  lastTapRef.current.col === c &&
+                                  now - lastTapRef.current.time < 360
+                                ) {
+                                  lastTapRef.current = null;
+                                  setEditingCell({ row: r, col: c });
+                                  setEditDraft(dispVal.toFixed(decimals));
+                                  return;
+                                }
+                                lastTapRef.current = { row: r, col: c, time: now };
+
+                                if (touchMode === 'select') {
                                   setAnchorCell({ row: r, col: c });
                                   setSelectedCells([{ row: r, col: c }]);
                                   setActiveRegionTag(null);
                                   setIsDragging(true);
+                                  try {
+                                    e.currentTarget
+                                      .closest('tbody')
+                                      ?.setPointerCapture?.(e.pointerId);
+                                  } catch {
+                                    // Ignore capture failure
+                                  }
                                 }
                               }}
-                              onMouseEnter={() => {
-                                if (isDragging && anchorCell) {
-                                  selectRange(anchorCell, { row: r, col: c });
+                              onClick={(e) => {
+                                if (
+                                  e.nativeEvent instanceof PointerEvent &&
+                                  e.nativeEvent.pointerType === 'mouse'
+                                ) {
+                                  return;
+                                }
+                                if (touchMode === 'scroll' && !rangeTapMode) {
+                                  setAnchorCell({ row: r, col: c });
+                                  setSelectedCells([{ row: r, col: c }]);
+                                  setActiveRegionTag(null);
                                 }
                               }}
                               onDoubleClick={() => {

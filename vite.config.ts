@@ -13,13 +13,6 @@ export default defineConfig(() => {
       VitePWA({
         registerType: 'autoUpdate',
         useCredentials: true,
-        includeAssets: [
-          'icon.svg',
-          'apple-touch-icon.png',
-          'pwa-192x192.png',
-          'pwa-512x512.png',
-          'pwa-maskable-512x512.png',
-        ],
         manifest: {
           id: '/',
           name: 'Honda PGM-FI ECU Studio',
@@ -28,7 +21,8 @@ export default defineConfig(() => {
             'แอปจูนกล่อง ECU รถจักรยานยนต์ Honda รองรับไฟล์ BIN/XDF ตารางจูน 2D/3D, Auto-Tune AFR และ Flasher พร้อม Auto Checksum',
           theme_color: '#090B10',
           background_color: '#090B10',
-          display: 'standalone',
+          display: 'fullscreen',
+          display_override: ['fullscreen', 'standalone'],
           orientation: 'landscape',
           start_url: '/',
           scope: '/',
@@ -55,6 +49,12 @@ export default defineConfig(() => {
         },
         workbox: {
           globPatterns: ['**/*.{js,css,html,ico,png,svg,woff,woff2}'],
+          globIgnores: ['assets/aistudio/**'],
+          cleanupOutdatedCaches: true,
+          clientsClaim: true,
+          skipWaiting: true,
+          navigateFallback: 'index.html',
+          navigateFallbackDenylist: [/^\/api\//, /^\/manifest\.webmanifest$/],
           maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
           runtimeCaching: [
             {
@@ -90,6 +90,7 @@ export default defineConfig(() => {
         devOptions: {
           enabled: true,
           type: 'classic',
+          navigateFallbackAllowlist: [],
         },
       }),
       // Copies src/assets into dist/ so root-relative URLs like

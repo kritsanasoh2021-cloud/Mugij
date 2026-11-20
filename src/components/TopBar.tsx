@@ -6,7 +6,9 @@ import {
   Database,
   Flame,
   Gauge,
+  Maximize2,
   Menu,
+  Minimize2,
   PlugZap,
   RotateCw,
   SlidersHorizontal,
@@ -31,6 +33,9 @@ interface TopBarProps {
   isCompactViewport?: boolean;
   preferredOrientation?: 'landscape' | 'portrait';
   onToggleOrientation?: () => void;
+  isFullscreen?: boolean;
+  isFullscreenSupported?: boolean;
+  onToggleFullscreen?: () => void;
 }
 
 const NAV_ITEMS: {
@@ -84,6 +89,9 @@ export const TopBar: React.FC<TopBarProps> = ({
   isCompactViewport = false,
   preferredOrientation = 'landscape',
   onToggleOrientation,
+  isFullscreen = false,
+  isFullscreenSupported = false,
+  onToggleFullscreen,
 }) => {
   const [menuOpen, setMenuOpen] = useState(false);
   const [connectMenuOpen, setConnectMenuOpen] = useState(false);
@@ -221,6 +229,34 @@ export const TopBar: React.FC<TopBarProps> = ({
 
       {/* Zone 3: Primary Web Serial / K-Line Connection Control */}
       <div className="flex items-center gap-2 shrink-0 relative" ref={connectRef}>
+        {isFullscreenSupported && onToggleFullscreen && (
+          <button
+            type="button"
+            onClick={onToggleFullscreen}
+            className={`h-8 px-2.5 rounded-md border text-xs font-semibold flex items-center gap-1.5 transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
+              isFullscreen
+                ? 'bg-[#171C28] hover:bg-[#1F2636] border-[#2B3346] text-slate-300'
+                : 'bg-cyan-600/20 hover:bg-cyan-600/35 border-cyan-500/50 text-cyan-200'
+            }`}
+            title={
+              isFullscreen
+                ? 'ออกจากโหมดเต็มจอ'
+                : 'ขยายเต็มจอ (ซ่อนแถบ URL และปุ่มนำทาง Android)'
+            }
+          >
+            {isFullscreen ? (
+              <>
+                <Minimize2 className="w-3.5 h-3.5" />
+                <span>ออกเต็มจอ</span>
+              </>
+            ) : (
+              <>
+                <Maximize2 className="w-3.5 h-3.5" />
+                <span>เต็มจอ</span>
+              </>
+            )}
+          </button>
+        )}
         {isCompactViewport && onToggleOrientation && (
           <button
             type="button"

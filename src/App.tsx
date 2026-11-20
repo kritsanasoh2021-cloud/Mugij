@@ -81,14 +81,37 @@ export default function App() {
   // Mobile/tablet orientation preference: open in landscape by default with toggle to portrait
   const [preferredOrientation, setPreferredOrientation] = useState<'landscape' | 'portrait'>('landscape');
   const [isCompactViewport, setIsCompactViewport] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
   const [stageMode, setStageMode] = useState<
     'normal' | 'landscape-rotated' | 'portrait-rotated'
   >('normal');
 
+  const isFullscreenSupported =
+    typeof document !== 'undefined' &&
+    Boolean(
+      document.fullscreenEnabled ||
+        (document as Document & { webkitFullscreenEnabled?: boolean }).webkitFullscreenEnabled
+    );
+
+  useEffect(() => {
+    const syncFullscreenState = () => {
+      const fsDoc = document as Document & { webkitFullscreenElement?: Element | null };
+      setIsFullscreen(Boolean(document.fullscreenElement || fsDoc.webkitFullscreenElement));
+    };
+    syncFullscreenState();
+    document.addEventListener('fullscreenchange', syncFullscreenState);
+    document.addEventListener('webkitfullscreenchange', syncFullscreenState);
+    return () => {
+      document.removeEventListener('fullscreenchange', syncFullscreenState);
+      document.removeEventListener('webkitfullscreenchange', syncFullscreenState);
+    };
+  }, []);
+
   useEffect(() => {
     const updateViewportStage = () => {
-      const w = window.innerWidth;
-      const h = window.innerHeight;
+      const vv = window.visualViewport;
+      const w = Math.round(vv?.width ?? window.innerWidth);
+      const h = Math.round(vv?.height ?? window.innerHeight);
       const ua = navigator.userAgent.toLowerCase();
       const isTouchDevice =
         /android|iphone|ipad|ipod|mobile/.test(ua) ||
@@ -126,9 +149,15 @@ export default function App() {
     updateViewportStage();
     window.addEventListener('resize', updateViewportStage);
     window.addEventListener('orientationchange', updateViewportStage);
+    document.addEventListener('fullscreenchange', updateViewportStage);
+    document.addEventListener('webkitfullscreenchange', updateViewportStage);
+    window.visualViewport?.addEventListener('resize', updateViewportStage);
     return () => {
       window.removeEventListener('resize', updateViewportStage);
       window.removeEventListener('orientationchange', updateViewportStage);
+      document.removeEventListener('fullscreenchange', updateViewportStage);
+      document.removeEventListener('webkitfullscreenchange', updateViewportStage);
+      window.visualViewport?.removeEventListener('resize', updateViewportStage);
       document.documentElement.style.removeProperty('--app-zoom');
       document.documentElement.style.removeProperty('--shell-w');
       document.documentElement.style.removeProperty('--shell-h');
@@ -144,7 +173,7 @@ export default function App() {
         // Browsers outside fullscreen/standalone reject lock(); CSS stage handles rotation seamlessly
       });
     }
-  }, [isCompactViewport, preferredOrientation]);
+  }, [isCompactViewport, preferredOrientation, isFullscreen]);
 
   const handleToggleOrientation = () => {
     const next = preferredOrientation === 'landscape' ? 'portrait' : 'landscape';
@@ -163,6 +192,39 @@ export default function App() {
           }
         }
       });
+    }
+  };
+
+  const handleToggleFullscreen = async () => {
+    const doc = document as Document & {
+      webkitFullscreenElement?: Element | null;
+      webkitExitFullscreen?: () => Promise<void>;
+    };
+    const rootEl = document.documentElement as HTMLElement & {
+      webkitRequestFullscreen?: () => Promise<void>;
+    };
+    try {
+      if (document.fullscreenElement || doc.webkitFullscreenElement) {
+        if (document.exitFullscreen) {
+          await document.exitFullscreen();
+        } else if (doc.webkitExitFullscreen) {
+          await doc.webkitExitFullscreen();
+        }
+      } else {
+        if (rootEl.requestFullscreen) {
+          await rootEl.requestFullscreen({ navigationUI: 'hide' });
+        } else if (rootEl.webkitRequestFullscreen) {
+          await rootEl.webkitRequestFullscreen();
+        }
+        const ori = screen.orientation as ScreenOrientation & {
+          lock?: (orientation: string) => Promise<void>;
+        };
+        if (isCompactViewport && ori?.lock) {
+          ori.lock(preferredOrientation).catch(() => {});
+        }
+      }
+    } catch {
+      // Ignore fullscreen rejection in sandboxed iframes
     }
   };
 
@@ -790,6 +852,11 @@ export default function App() {
           isCompactViewport={isCompactViewport}
           preferredOrientation={preferredOrientation}
           onToggleOrientation={handleToggleOrientation}
+          isFullscreen={isFullscreen}
+          isFullscreenSupported={isFullscreenSupported}
+          onToggleFullscreen={() => {
+            void handleToggleFullscreen();
+          }}
         />
 
       <div className="flex-1 min-h-0 overflow-hidden">

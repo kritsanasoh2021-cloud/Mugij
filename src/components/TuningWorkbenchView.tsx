@@ -150,6 +150,9 @@ export const TuningWorkbenchView: React.FC<TuningWorkbenchViewProps> = ({
   const [selectedCells, setSelectedCells] = useState<CellCoord[]>([{ row: 0, col: 0 }]);
   const [anchorCell, setAnchorCell] = useState<CellCoord | null>({ row: 0, col: 0 });
   const [isDraggingCells, setIsDraggingCells] = useState(false);
+  const [touchMode, setTouchMode] = useState<'select' | 'scroll'>('select');
+  const [rangeTapMode, setRangeTapMode] = useState(false);
+  const lastTapRef = useRef<{ row: number; col: number; time: number } | null>(null);
   const [batchInput, setBatchInput] = useState('5');
   const [editingCell, setEditingCell] = useState<CellCoord | null>(null);
   const [editDraft, setEditDraft] = useState('');
@@ -184,9 +187,13 @@ export const TuningWorkbenchView: React.FC<TuningWorkbenchViewProps> = ({
       }
     };
     window.addEventListener('mouseup', onUp);
+    window.addEventListener('pointerup', onUp);
+    window.addEventListener('pointercancel', onUp);
     window.addEventListener('mousedown', onDown);
     return () => {
       window.removeEventListener('mouseup', onUp);
+      window.removeEventListener('pointerup', onUp);
+      window.removeEventListener('pointercancel', onUp);
       window.removeEventListener('mousedown', onDown);
     };
   }, []);
@@ -1147,6 +1154,86 @@ export const TuningWorkbenchView: React.FC<TuningWorkbenchViewProps> = ({
               {/* Full-Page 2D Table Heatmap */}
               {viewMode === 'table' && (
                 <div className="w-full bg-[#11151E] border border-[#242B3B] rounded-lg flex flex-col min-w-0 overflow-hidden">
+                  {/* Touch & Range Selection Helper Strip */}
+                  <div className="px-2.5 py-1.5 bg-[#0D1018] border-b border-[#1E2535] flex flex-wrap items-center justify-between gap-2 shrink-0 text-[11px]">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <div className="flex items-center gap-0.5 bg-[#090B10] p-0.5 rounded border border-[#242B3B]">
+                        <button
+                          type="button"
+                          onClick={() => setTouchMode('select')}
+                          className={`px-2 py-0.5 rounded font-semibold transition-colors cursor-pointer ${
+                            touchMode === 'select'
+                              ? 'bg-cyan-600 text-white'
+                              : 'text-slate-300 hover:text-white'
+                          }`}
+                          title="แตะลากบนตารางเพื่อครอบเลือกหลายเซลล์"
+                        >
+                          ลากครอบเซลล์
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setTouchMode('scroll')}
+                          className={`px-2 py-0.5 rounded font-semibold transition-colors cursor-pointer ${
+                            touchMode === 'scroll'
+                              ? 'bg-cyan-600 text-white'
+                              : 'text-slate-300 hover:text-white'
+                          }`}
+                          title="ใช้นิ้วเลื่อนดูตารางซ้าย-ขวา/ขึ้น-ลง"
+                        >
+                          เลื่อนดูตาราง
+                        </button>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => setRangeTapMode((v) => !v)}
+                        className={`px-2 py-0.5 rounded border font-medium transition-colors cursor-pointer ${
+                          rangeTapMode
+                            ? 'bg-amber-600/25 border-amber-500 text-amber-200'
+                            : 'bg-[#171C28] hover:bg-[#22293B] border-[#2C364C] text-slate-300'
+                        }`}
+                        title="แตะเซลล์เริ่มต้น แล้วแตะอีกเซลล์เพื่อครอบสี่เหลี่ยมข้ามหน้าได้"
+                      >
+                        {rangeTapMode ? 'แตะเซลล์ปลายทาง...' : 'แตะเลือกช่วง (2 จุด)'}
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const rCount = workingMatrix.length;
+                          const cCount = workingMatrix[0]?.length || 0;
+                          if (rCount > 0 && cCount > 0) {
+                            setAnchorCell({ row: 0, col: 0 });
+                            selectRange({ row: 0, col: 0 }, { row: rCount - 1, col: cCount - 1 });
+                          }
+                        }}
+                        className="px-2 py-0.5 rounded bg-[#171C28] hover:bg-[#22293B] border border-[#2C364C] text-slate-300 font-medium cursor-pointer"
+                        title="ครอบเลือกทุกเซลล์ในตาราง"
+                      >
+                        ครอบทั้งหมด
+                      </button>
+
+                      {selectedCells.length === 1 && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const cell = selectedCells[0];
+                            const cur = workingMatrix[cell.row]?.[cell.col] ?? 0;
+                            setEditingCell(cell);
+                            setEditDraft(cur.toFixed(activeTable.decimalPlaces));
+                          }}
+                          className="px-2 py-0.5 rounded bg-emerald-600/20 hover:bg-emerald-600/35 border border-emerald-500/50 text-emerald-300 font-semibold cursor-pointer"
+                        >
+                          แก้ค่าช่องนี้
+                        </button>
+                      )}
+                    </div>
+
+                    <div className="text-[10.5px] font-mono-tabular text-slate-400">
+                      แตะหัวแถว/คอลัมน์เพื่อครอบทั้งแถว · ดับเบิลแตะเซลล์เพื่อพิมพ์ค่า · เลือก {selectedCells.length} เซลล์
+                    </div>
+                  </div>
+
                   <div className="flex-1 overflow-auto p-2">
                     <table
                       className={`w-max min-w-full border-collapse font-mono-tabular select-none ${
@@ -1156,10 +1243,18 @@ export const TuningWorkbenchView: React.FC<TuningWorkbenchViewProps> = ({
                       <thead>
                         <tr>
                           <th
-                            className={`sticky top-0 left-0 z-20 bg-[#0D1018] border border-[#242B3B] text-slate-300 text-left whitespace-nowrap ${
+                            onClick={() => {
+                              const rCount = workingMatrix.length;
+                              const cCount = workingMatrix[0]?.length || 0;
+                              if (rCount > 0 && cCount > 0) {
+                                setAnchorCell({ row: 0, col: 0 });
+                                selectRange({ row: 0, col: 0 }, { row: rCount - 1, col: cCount - 1 });
+                              }
+                            }}
+                            className={`sticky top-0 left-0 z-20 bg-[#0D1018] hover:bg-[#171E2E] border border-[#242B3B] text-slate-300 text-left whitespace-nowrap cursor-pointer ${
                               isDenseGrid ? 'px-1.5 py-1 text-[9.5px]' : 'px-2 py-1.5 text-[10px]'
                             }`}
-                            title={`แนวตั้ง (Y): ${activeTable.yAxis.units} · แนวนอน (X): ${activeTable.xAxis.units}`}
+                            title={`คลิก/แตะเพื่อครอบทั้งตาราง · แนวตั้ง: ${activeTable.yAxis.units} · แนวนอน: ${activeTable.xAxis.units}`}
                           >
                             {activeTable.yAxis.units} \ {activeTable.xAxis.units}
                           </th>
@@ -1172,14 +1267,22 @@ export const TuningWorkbenchView: React.FC<TuningWorkbenchViewProps> = ({
                             return (
                               <th
                                 key={c}
-                                className={`sticky top-0 z-10 border font-semibold text-center transition-colors whitespace-nowrap ${
+                                onClick={() => {
+                                  const rCount = workingMatrix.length;
+                                  if (rCount > 0) {
+                                    setAnchorCell({ row: 0, col: c });
+                                    selectRange({ row: 0, col: c }, { row: rCount - 1, col: c });
+                                  }
+                                }}
+                                title={`แตะเพื่อครอบทั้งคอลัมน์ ${formattedX}`}
+                                className={`sticky top-0 z-10 border font-semibold text-center transition-colors whitespace-nowrap cursor-pointer ${
                                   isDenseGrid
                                     ? 'px-1 py-1 text-[10px] min-w-[42px]'
                                     : 'px-1.5 py-1.5 text-[11px]'
                                 } ${
                                   isLiveCol
                                     ? 'bg-cyan-950/75 border-cyan-400/70 text-cyan-200'
-                                    : 'bg-[#141925] border-[#242B3B] text-slate-200'
+                                    : 'bg-[#141925] hover:bg-[#1C2333] border-[#242B3B] text-slate-200'
                                 }`}
                               >
                                 {formattedX}
@@ -1188,7 +1291,23 @@ export const TuningWorkbenchView: React.FC<TuningWorkbenchViewProps> = ({
                           })}
                         </tr>
                       </thead>
-                      <tbody>
+                      <tbody
+                        className={touchMode === 'select' ? 'touch-none' : 'touch-auto'}
+                        onPointerMove={(e) => {
+                          if (!isDraggingCells || !anchorCell) return;
+                          const hit = document
+                            .elementFromPoint(e.clientX, e.clientY)
+                            ?.closest('[data-cell-row]') as HTMLElement | null;
+                          if (!hit) return;
+                          const r = Number(hit.dataset.cellRow);
+                          const c = Number(hit.dataset.cellCol);
+                          if (!Number.isNaN(r) && !Number.isNaN(c)) {
+                            selectRange(anchorCell, { row: r, col: c });
+                          }
+                        }}
+                        onPointerUp={() => setIsDraggingCells(false)}
+                        onPointerCancel={() => setIsDraggingCells(false)}
+                      >
                         {workingMatrix.map((rowVals, r) => {
                           const isLiveRow = liveTrace?.row === r;
                           const rawYVal = yLabels[r];
@@ -1201,14 +1320,22 @@ export const TuningWorkbenchView: React.FC<TuningWorkbenchViewProps> = ({
                           return (
                           <tr key={r}>
                             <th
-                              className={`sticky left-0 z-10 border font-semibold text-right transition-colors whitespace-nowrap ${
+                              onClick={() => {
+                                const cCount = rowVals.length;
+                                if (cCount > 0) {
+                                  setAnchorCell({ row: r, col: 0 });
+                                  selectRange({ row: r, col: 0 }, { row: r, col: cCount - 1 });
+                                }
+                              }}
+                              title={`แตะเพื่อครอบทั้งแถว ${formattedY}`}
+                              className={`sticky left-0 z-10 border font-semibold text-right transition-colors whitespace-nowrap cursor-pointer ${
                                 isDenseGrid
                                   ? 'px-1.5 py-[3px] text-[10px] min-w-[42px]'
                                   : 'px-2 py-1 text-[11px]'
                               } ${
                                 isLiveRow
                                   ? 'bg-cyan-950/75 border-cyan-400/70 text-cyan-200'
-                                  : 'bg-[#141925] border-[#242B3B] text-slate-200'
+                                  : 'bg-[#141925] hover:bg-[#1C2333] border-[#242B3B] text-slate-200'
                               }`}
                             >
                               {formattedY}
@@ -1277,18 +1404,62 @@ export const TuningWorkbenchView: React.FC<TuningWorkbenchViewProps> = ({
                               return (
                                 <td
                                   key={c}
-                                  onMouseDown={(e) => {
-                                    if (e.shiftKey && anchorCell) {
+                                  data-cell-row={r}
+                                  data-cell-col={c}
+                                  onPointerDown={(e) => {
+                                    if ((e.target as HTMLElement).tagName === 'INPUT') return;
+                                    if (rangeTapMode && anchorCell) {
                                       selectRange(anchorCell, { row: r, col: c });
-                                    } else {
+                                      return;
+                                    }
+                                    if (e.pointerType === 'mouse') {
+                                      if (e.shiftKey && anchorCell) {
+                                        selectRange(anchorCell, { row: r, col: c });
+                                      } else {
+                                        setAnchorCell({ row: r, col: c });
+                                        setSelectedCells([{ row: r, col: c }]);
+                                        setIsDraggingCells(true);
+                                      }
+                                      return;
+                                    }
+                                    // Touch / Pen handling
+                                    const now = Date.now();
+                                    if (
+                                      lastTapRef.current &&
+                                      lastTapRef.current.row === r &&
+                                      lastTapRef.current.col === c &&
+                                      now - lastTapRef.current.time < 360
+                                    ) {
+                                      lastTapRef.current = null;
+                                      setEditingCell({ row: r, col: c });
+                                      setEditDraft(val.toFixed(activeTable.decimalPlaces));
+                                      return;
+                                    }
+                                    lastTapRef.current = { row: r, col: c, time: now };
+
+                                    if (touchMode === 'select') {
                                       setAnchorCell({ row: r, col: c });
                                       setSelectedCells([{ row: r, col: c }]);
                                       setIsDraggingCells(true);
+                                      try {
+                                        e.currentTarget
+                                          .closest('tbody')
+                                          ?.setPointerCapture?.(e.pointerId);
+                                      } catch {
+                                        // Ignore capture failure
+                                      }
                                     }
                                   }}
-                                  onMouseEnter={() => {
-                                    if (isDraggingCells && anchorCell) {
-                                      selectRange(anchorCell, { row: r, col: c });
+                                  onClick={(e) => {
+                                    if (
+                                      e.nativeEvent instanceof PointerEvent &&
+                                      e.nativeEvent.pointerType === 'mouse'
+                                    ) {
+                                      return;
+                                    }
+                                    if (touchMode === 'scroll' && !rangeTapMode) {
+                                      setAnchorCell({ row: r, col: c });
+                                      setSelectedCells([{ row: r, col: c }]);
                                     }
                                   }}
                                   onDoubleClick={() => {
