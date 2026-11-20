@@ -8,10 +8,12 @@ import {
   Lock,
   RotateCcw,
   Search,
+  Smartphone,
   Trash2,
   Upload,
 } from 'lucide-react';
 import { HONDA_MODEL_PRESETS } from '../data/hondaPresets';
+import { PWAInstallHelpOverlay } from './PWAInstallHelpOverlay';
 import {
   decodeXdfBufferAsync,
   NO_BIN_PLACEHOLDER,
@@ -68,6 +70,7 @@ export const EcuLibraryView: React.FC<EcuLibraryViewProps> = ({
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [uploadNotice, setUploadNotice] = useState<string | null>(null);
   const [isDraggingFile, setIsDraggingFile] = useState(false);
+  const [showPwaHelp, setShowPwaHelp] = useState(false);
 
   const binInputRef = useRef<HTMLInputElement>(null);
   const xdfInputRef = useRef<HTMLInputElement>(null);
@@ -237,15 +240,27 @@ export const EcuLibraryView: React.FC<EcuLibraryViewProps> = ({
             </p>
           </div>
 
-          <div className="relative w-64">
-            <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="ค้นหารุ่น, เบอร์กล่อง, Cal ID..."
-              className="w-full h-8 pl-8 pr-2.5 bg-[#090B10] border border-[#2A3347] rounded text-xs text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-cyan-500"
-            />
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              type="button"
+              onClick={() => setShowPwaHelp(true)}
+              className="h-8 px-2.5 rounded bg-[#171C28] hover:bg-[#1F2739] border border-[#2B354B] hover:border-emerald-500/50 text-emerald-300 text-xs font-semibold flex items-center gap-1.5 transition-colors whitespace-nowrap shrink-0 cursor-pointer"
+              title="ดูวิธีติดตั้งเป็นแอป (Add to Home Screen) บน Chrome และ iOS Safari"
+            >
+              <Smartphone className="w-3.5 h-3.5 shrink-0" />
+              <span>Install PWA</span>
+            </button>
+
+            <div className="relative w-56">
+              <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="ค้นหารุ่น, เบอร์กล่อง, Cal ID..."
+                className="w-full h-8 pl-8 pr-2.5 bg-[#090B10] border border-[#2A3347] rounded text-xs text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-cyan-500"
+              />
+            </div>
           </div>
         </div>
 
@@ -566,6 +581,11 @@ export const EcuLibraryView: React.FC<EcuLibraryViewProps> = ({
           </div>
         </div>
       </section>
+
+      <PWAInstallHelpOverlay
+        isOpen={showPwaHelp}
+        onClose={() => setShowPwaHelp(false)}
+      />
     </div>
   );
 };
